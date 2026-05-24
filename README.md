@@ -264,3 +264,4 @@ The pipeline extracts products from Odoo ERP and VTM PostgreSQL, upserts them in
 - **Fault tolerant** — a failure in one source does not stop processing of the other
 # MDB
 # MDB
+# MDB
