@@ -263,3 +263,4 @@ The pipeline extracts products from Odoo ERP and VTM PostgreSQL, upserts them in
 - **Retry logic** — failed MongoDB batches are retried up to 3 times with exponential backoff (1s, 2s, 4s)
 - **Fault tolerant** — a failure in one source does not stop processing of the other
 # MDB
+# MDB
