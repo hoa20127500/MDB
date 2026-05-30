@@ -137,6 +137,13 @@
       border: 1px solid #991b1b;
     }
     .btn-danger:hover { background: #991b1b; }
+    .btn-success {
+      background: #14532d;
+      color: #4ade80;
+      border: 1px solid #166534;
+    }
+    .btn-success:hover { background: #166534; transform: translateY(-1px); }
+    .btn-success:disabled { background: #0d2818; color: #22c55e; cursor: not-allowed; transform: none; }
 
     /* ── Pipeline panel ── */
     .pipeline-section {
@@ -596,7 +603,7 @@
           <div class="product-category">📁 ${escHtml(p.category || 'Uncategorized')}</div>
           ${p.description ? `<div class="product-description">${escHtml(p.description)}</div>` : ''}
           <div class="product-footer">
-            <div>
+            <div style="flex:1">
               ${price
                 ? `<div class="product-price">${price}</div>`
                 : `<div class="product-price zero">Price on request</div>`}
@@ -609,6 +616,10 @@
               <div class="score-bar"><div class="score-fill" style="width:${scorePercent}%"></div></div>
               <span class="score-value">${scorePercent}%</span>
             </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid #1e293b;padding-top:12px;">
+            <button class="btn btn-secondary" style="flex:1;padding:10px;font-size:0.85rem;" onclick="event.stopPropagation(); recordClick('${escHtml(p.source_id)}')">View</button>
+            <button class="btn btn-success" style="flex:1;padding:10px;font-size:0.85rem;" onclick="event.stopPropagation(); recordPurchase('${escHtml(p.source_id)}')">🛒 Buy</button>
           </div>
         </div>`;
     });
@@ -644,6 +655,29 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, product_id: productId })
     }).catch(() => {});
+  }
+
+  function recordPurchase(productId) {
+    const userId = document.getElementById('user-id').value.trim();
+    if (!userId) {
+      showToast('Please enter a User ID to record purchases', 'error');
+      return;
+    }
+    fetch(`${API}/events/purchase`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, product_ids: [productId] })
+    })
+    .then(r => {
+      if (r.ok) {
+        showToast('✅ Purchase recorded! Product added to cart.', 'success');
+      } else {
+        showToast('Failed to record purchase', 'error');
+      }
+    })
+    .catch(() => {
+      showToast('Network error while recording purchase', 'error');
+    });
   }
 
   // ── UI helpers ────────────────────────────────────────────────────────────

@@ -31,7 +31,9 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from app.api.admin import admin_router
 from app.api.behavior import BehaviorTracker
@@ -155,6 +157,20 @@ def create_app() -> FastAPI:
     # ── Routes ───────────────────────────────────────────────────────────────
     application.include_router(router)
     application.include_router(admin_router)
+
+    # ── Static files (frontend) ──────────────────────────────────────────────
+    frontend_path = Path(__file__).parent.parent / "frontend"
+    if frontend_path.exists():
+        application.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+
+        # Serve index.html for root path
+        @application.get("/", include_in_schema=False)
+        async def root() -> FileResponse:
+            """Serve the frontend index.html."""
+            index_path = frontend_path / "index.html"
+            if index_path.exists():
+                return FileResponse(str(index_path), media_type="text/html")
+            return JSONResponse({"error": "index.html not found"}, status_code=404)
 
     # ── Request-ID middleware ─────────────────────────────────────────────────
 
