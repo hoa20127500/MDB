@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Recommendation Engine</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      border-bottom: 1px solid #1e40af33;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header h1 span { font-size: 1.6rem; }
+    .status-badge {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      background: #14532d;
+      color: #4ade80;
+      border: 1px solid #166534;
+    }
+    .status-badge.error { background: #450a0a; color: #f87171; border-color: #7f1d1d; }
+
+    /* ── Layout ── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ── Search bar ── */
+    .search-section {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 28px;
+    }
+    .search-section h2 { font-size: 1rem; color: #94a3b8; margin-bottom: 16px; font-weight: 500; }
+    .search-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 260px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 1rem;
+      color: #e2e8f0;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: #3b82f6; }
+    .search-input::placeholder { color: #475569; }
+
+    .options-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .option-group { display: flex; align-items: center; gap: 8px; }
+    .option-group label { font-size: 0.8rem; color: #64748b; white-space: nowrap; }
+    .option-input {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      width: 80px;
+      outline: none;
+    }
+    .option-input:focus { border-color: #3b82f6; }
+
+    .user-input {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      width: 160px;
+      outline: none;
+    }
+    .user-input:focus { border-color: #3b82f6; }
+
+    .btn {
+      padding: 12px 24px;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+    }
+    .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+    .btn-primary:disabled { background: #1e3a5f; color: #475569; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover { background: #334155; color: #e2e8f0; }
+    .btn-danger {
+      background: #7f1d1d;
+      color: #fca5a5;
+      border: 1px solid #991b1b;
+    }
+    .btn-danger:hover { background: #991b1b; }
+
+    /* ── Pipeline panel ── */
+    .pipeline-section {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 20px 28px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .pipeline-section h2 { font-size: 0.9rem; color: #64748b; font-weight: 500; flex: 1; min-width: 120px; }
+    .pipeline-info { font-size: 0.8rem; color: #475569; flex: 1; }
+    .pipeline-info span { color: #94a3b8; }
+
+    /* ── Results ── */
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .results-header h2 { font-size: 1rem; color: #94a3b8; font-weight: 500; }
+    .results-count { font-size: 0.8rem; color: #475569; }
+
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #475569;
+    }
+    .loading-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid #1e293b;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #475569;
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    .error-msg {
+      background: #450a0a;
+      border: 1px solid #7f1d1d;
+      border-radius: 10px;
+      padding: 16px 20px;
+      color: #f87171;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+
+    /* ── Product grid ── */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .product-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .product-card:hover {
+      border-color: #3b82f6;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+    }
+    .product-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .product-card:hover::before { opacity: 1; }
+
+    .product-rank {
+      position: absolute;
+      top: 12px; right: 12px;
+      font-size: 0.7rem;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    .product-source {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .source-odoo { background: #1e3a5f; color: #60a5fa; border: 1px solid #1e40af; }
+    .source-vtm  { background: #2d1b69; color: #a78bfa; border: 1px solid #4c1d95; }
+
+    .product-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 8px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .product-category {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .product-description {
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.5;
+      margin-bottom: 14px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .product-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 12px;
+      border-top: 1px solid #1e293b;
+    }
+
+    .product-price {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #34d399;
+    }
+    .product-price.zero { color: #475569; font-size: 0.8rem; font-weight: 400; }
+
+    .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .score-label { font-size: 0.7rem; color: #475569; }
+    .score-bar {
+      width: 60px; height: 4px;
+      background: #0f172a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .score-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    }
+    .score-value { font-size: 0.75rem; color: #94a3b8; font-weight: 600; }
+
+    .availability-badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .avail-yes { background: #14532d; color: #4ade80; }
+    .avail-no  { background: #450a0a; color: #f87171; }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 28px;
+    }
+    .page-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+    }
+    .page-btn:hover { background: #334155; color: #e2e8f0; }
+    .page-btn.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 14px 20px;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 1000;
+      max-width: 320px;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: #166534; color: #4ade80; }
+    .toast.error   { border-color: #7f1d1d; color: #f87171; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1><span>🔍</span> Product Recommendation Engine</h1>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span id="api-status" class="status-badge">Checking...</span>
+    <span style="font-size:0.75rem;color:#475569;">API: localhost:8000</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Pipeline Panel -->
+  <div class="pipeline-section">
+    <h2>⚙️ Data Pipeline</h2>
+    <div class="pipeline-info" id="pipeline-info">
+      <span>Status: </span><span id="pipeline-status-text">unknown</span>
+    </div>
+    <button class="btn btn-secondary" onclick="triggerPipeline('incremental')">▶ Incremental</button>
+    <button class="btn btn-primary" onclick="triggerPipeline('full')">⟳ Full Sync</button>
+  </div>
+
+  <!-- Search Section -->
+  <div class="search-section">
+    <h2>🎯 Search Products</h2>
+    <div class="search-row">
+      <input
+        id="search-query"
+        class="search-input"
+        type="text"
+        placeholder="e.g. bàn trộn âm thanh, loa công suất, digital mixer..."
+        onkeydown="if(event.key==='Enter') doSearch()"
+      />
+      <button class="btn btn-primary" id="search-btn" onclick="doSearch()">Search</button>
+    </div>
+    <div class="options-row">
+      <div class="option-group">
+        <label>User ID</label>
+        <input id="user-id" class="user-input" type="text" placeholder="optional" />
+      </div>
+      <div class="option-group">
+        <label>Top K</label>
+        <input id="top-k" class="option-input" type="number" value="10" min="1" max="100" />
+      </div>
+      <div class="option-group">
+        <label>Min Score</label>
+        <input id="min-score" class="option-input" type="number" value="" placeholder="0–1" min="0" max="1" step="0.05" />
+      </div>
+      <div class="option-group">
+        <label>Page Size</label>
+        <input id="page-size" class="option-input" type="number" value="12" min="1" max="50" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section">
+    <div class="empty-state">
+      <div class="icon">🎵</div>
+      <p>Enter a search query to get personalized product recommendations</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script>
+  const API = 'http://localhost:8000';
+  let currentPage = 1;
+  let lastQuery = '';
+  let lastTotal = 0;
+
+  // ── Health check ──────────────────────────────────────────────────────────
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${API}/health`);
+      const badge = document.getElementById('api-status');
+      if (r.ok) {
+        badge.textContent = '● Online';
+        badge.className = 'status-badge';
+      } else {
+        badge.textContent = '● Error';
+        badge.className = 'status-badge error';
+      }
+    } catch {
+      const badge = document.getElementById('api-status');
+      badge.textContent = '● Offline';
+      badge.className = 'status-badge error';
+    }
+  }
+
+  // ── Pipeline status ───────────────────────────────────────────────────────
+  async function fetchPipelineStatus() {
+    try {
+      const r = await fetch(`${API}/admin/pipeline/status`);
+      const data = await r.json();
+      const el = document.getElementById('pipeline-status-text');
+      if (data.running) {
+        el.textContent = '🔄 Running...';
+        el.style.color = '#fbbf24';
+        setTimeout(fetchPipelineStatus, 3000);
+      } else if (data.latest_run) {
+        const run = data.latest_run;
+        const total = Object.values(run.records_processed || {}).reduce((a, b) => a + b, 0);
+        el.innerHTML = `<span style="color:${run.status==='success'?'#4ade80':'#f87171'}">${run.status}</span> — ${total.toLocaleString()} products loaded`;
+        el.style.color = '';
+      } else {
+        el.textContent = 'No runs yet';
+        el.style.color = '#475569';
+      }
+    } catch {
+      document.getElementById('pipeline-status-text').textContent = 'unavailable';
+    }
+  }
+
+  async function triggerPipeline(mode) {
+    showToast(`Triggering ${mode} pipeline run...`, '');
+    try {
+      const r = await fetch(`${API}/admin/pipeline/trigger?mode=${mode}`, { method: 'POST' });
+      const data = await r.json();
+      if (r.status === 409) {
+        showToast('Pipeline already running', 'error');
+      } else {
+        showToast(`Pipeline started (${mode})`, 'success');
+        setTimeout(fetchPipelineStatus, 1000);
+      }
+    } catch (e) {
+      showToast('Failed to trigger pipeline', 'error');
+    }
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
+  async function doSearch(page = 1) {
+    const query = document.getElementById('search-query').value.trim();
+    if (!query) { showToast('Please enter a search query', 'error'); return; }
+
+    currentPage = page;
+    lastQuery = query;
+
+    const k = parseInt(document.getElementById('top-k').value) || 10;
+    const pageSize = parseInt(document.getElementById('page-size').value) || 12;
+    const userId = document.getElementById('user-id').value.trim() || null;
+    const minScoreRaw = document.getElementById('min-score').value;
+    const minScore = minScoreRaw !== '' ? parseFloat(minScoreRaw) : null;
+
+    const body = { query, k, page, page_size: pageSize };
+    if (userId) body.user_id = userId;
+    if (minScore !== null) body.min_score = minScore;
+
+    // Record search event if user_id provided
+    if (userId) {
+      fetch(`${API}/events/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, query })
+      }).catch(() => {});
+    }
+
+    const btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+
+    showLoading();
+
+    try {
+      const r = await fetch(`${API}/recommendations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!r.ok) {
+        const err = await r.json();
+        showError(`Error ${r.status}: ${JSON.stringify(err.detail || err)}`);
+        return;
+      }
+
+      const data = await r.json();
+      lastTotal = data.total;
+      renderResults(data, pageSize);
+
+    } catch (e) {
+      showError(`Network error: ${e.message}. Is the server running?`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Search';
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function renderResults(data, pageSize) {
+    const section = document.getElementById('results-section');
+
+    if (!data.results || data.results.length === 0) {
+      section.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">🔎</div>
+          <p>No products found for "<strong>${escHtml(data.query)}</strong>"</p>
+          <p style="margin-top:8px;font-size:0.8rem;">Try a different query or run the pipeline to load products first.</p>
+        </div>`;
+      return;
+    }
+
+    const totalPages = Math.ceil(data.total / pageSize);
+    const offset = (data.page - 1) * pageSize;
+
+    let html = `
+      <div class="results-header">
+        <h2>Results for "<span style="color:#60a5fa">${escHtml(data.query)}</span>"</h2>
+        <span class="results-count">${data.total} total · page ${data.page} of ${totalPages}</span>
+      </div>
+      <div class="product-grid">`;
+
+    data.results.forEach((p, i) => {
+      const rank = offset + i + 1;
+      const source = p.source_id.split(':')[0];
+      const scorePercent = Math.round(p.similarity_score * 100);
+      const price = p.price > 0
+        ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p.price)
+        : null;
+
+      html += `
+        <div class="product-card" onclick="recordClick('${escHtml(p.source_id)}')">
+          <span class="product-rank">#${rank}</span>
+          <span class="product-source source-${source}">${source}</span>
+          <div class="product-name">${escHtml(p.name)}</div>
+          <div class="product-category">📁 ${escHtml(p.category || 'Uncategorized')}</div>
+          ${p.description ? `<div class="product-description">${escHtml(p.description)}</div>` : ''}
+          <div class="product-footer">
+            <div>
+              ${price
+                ? `<div class="product-price">${price}</div>`
+                : `<div class="product-price zero">Price on request</div>`}
+              <span class="availability-badge ${p.availability ? 'avail-yes' : 'avail-no'}">
+                ${p.availability ? 'In Stock' : 'Out of Stock'}
+              </span>
+            </div>
+            <div class="score-bar-wrap">
+              <span class="score-label">Match</span>
+              <div class="score-bar"><div class="score-fill" style="width:${scorePercent}%"></div></div>
+              <span class="score-value">${scorePercent}%</span>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    html += `</div>`;
+
+    // Pagination
+    if (totalPages > 1) {
+      html += `<div class="pagination">`;
+      html += `<button class="page-btn" onclick="doSearch(${data.page - 1})" ${data.page <= 1 ? 'disabled' : ''}>← Prev</button>`;
+
+      const start = Math.max(1, data.page - 2);
+      const end = Math.min(totalPages, data.page + 2);
+      if (start > 1) html += `<button class="page-btn" onclick="doSearch(1)">1</button>`;
+      if (start > 2) html += `<span style="color:#475569;padding:0 4px">…</span>`;
+      for (let p = start; p <= end; p++) {
+        html += `<button class="page-btn ${p === data.page ? 'active' : ''}" onclick="doSearch(${p})">${p}</button>`;
+      }
+      if (end < totalPages - 1) html += `<span style="color:#475569;padding:0 4px">…</span>`;
+      if (end < totalPages) html += `<button class="page-btn" onclick="doSearch(${totalPages})">${totalPages}</button>`;
+      html += `<button class="page-btn" onclick="doSearch(${data.page + 1})" ${data.page >= totalPages ? 'disabled' : ''}>Next →</button>`;
+      html += `</div>`;
+    }
+
+    section.innerHTML = html;
+  }
+
+  function recordClick(productId) {
+    const userId = document.getElementById('user-id').value.trim();
+    if (!userId) return;
+    fetch(`${API}/events/click`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, product_id: productId })
+    }).catch(() => {});
+  }
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+  function showLoading() {
+    document.getElementById('results-section').innerHTML = `
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <p>Finding the best matches...</p>
+      </div>`;
+  }
+
+  function showError(msg) {
+    document.getElementById('results-section').innerHTML = `
+      <div class="error-msg">⚠️ ${escHtml(msg)}</div>`;
+  }
+
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => { t.className = `toast ${type}`; }, 3000);
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  checkHealth();
+  fetchPipelineStatus();
+  setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>

@@ -30,6 +30,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.admin import admin_router
@@ -41,6 +42,9 @@ from app.core.db import create_motor_client, get_database
 from app.core.embedding import EmbeddingService
 from app.core.indexes import ensure_indexes
 from app.core.logging import configure_logging, get_logger, request_id_var
+from app.pipeline.adapters.odoo import OdooAdapter
+from app.pipeline.adapters.vtm import VTMAdapter
+from app.pipeline.loader import Loader
 from app.pipeline.orchestrator import PipelineOrchestrator
 from app.pipeline.scheduler import PipelineScheduler
 
@@ -87,8 +91,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     recommendation_engine = RecommendationEngine(db, embedding_service, behavior_tracker)
     app.state.recommendation_engine = recommendation_engine
 
-    # Pipeline orchestrator
-    orchestrator = PipelineOrchestrator()
+    # Pipeline orchestrator — wired with real adapters and loader
+    odoo_adapter = OdooAdapter(dsn=settings.ODOO_DSN, limit=settings.EXTRACT_LIMIT)
+    vtm_adapter = VTMAdapter(dsn=settings.VTM_DSN, limit=settings.EXTRACT_LIMIT)
+    loader = Loader(db=db, embedding_service=embedding_service)
+    orchestrator = PipelineOrchestrator(
+        db=db,
+        loader=loader,
+        odoo_adapter=odoo_adapter,
+        vtm_adapter=vtm_adapter,
+        settings=settings,
+    )
     app.state.orchestrator = orchestrator
 
     # Pipeline scheduler
@@ -129,6 +142,14 @@ def create_app() -> FastAPI:
         ),
         version="1.0.0",
         lifespan=lifespan,
+    )
+
+    # ── CORS ─────────────────────────────────────────────────────────────────
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # ── Routes ───────────────────────────────────────────────────────────────

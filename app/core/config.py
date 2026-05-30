@@ -74,6 +74,12 @@ class Settings(BaseSettings):
         description="Number of product records processed per MongoDB bulk-write batch",
     )
 
+    EXTRACT_LIMIT: int | None = Field(
+        default=None,
+        ge=1,
+        description="Max products to extract per source per run. None = no limit (all products).",
+    )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
